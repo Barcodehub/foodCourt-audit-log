@@ -1,6 +1,7 @@
 package com.pragma.powerup.infrastructure.out.mongodb.adapter;
 
 import com.pragma.powerup.domain.model.OrderStatusAuditModel;
+import com.pragma.powerup.domain.spi.IOrderMetricsPersistencePort;
 import com.pragma.powerup.domain.spi.IOrderStatusAuditPersistencePort;
 import com.pragma.powerup.infrastructure.out.mongodb.document.OrderStatusAuditDocument;
 import com.pragma.powerup.infrastructure.out.mongodb.mapper.IOrderStatusAuditDocumentMapper;
@@ -19,7 +20,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
-public class OrderStatusAuditMongoAdapter implements IOrderStatusAuditPersistencePort {
+public class OrderStatusAuditMongoAdapter implements IOrderStatusAuditPersistencePort, IOrderMetricsPersistencePort {
 
     private final IOrderStatusAuditRepository auditRepository;
     private final IOrderStatusAuditDocumentMapper auditMapper;

@@ -1,0 +1,22 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/traceability_audit}
+      auto-index-creation: true
+
+appDescription: "Traceability and Audit Microservice"
+appVersion: "1.0.0"
+
+
+# Configuración de SpringDoc OpenAPI
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  api-docs:
+    enabled: true
+    path: /api-docs
+

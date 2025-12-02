@@ -1,0 +1,330 @@
+openapi: 3.0.3
+info:
+  title: Traceability and Audit API
+  description: API para auditoría y trazabilidad de cambios de estado de pedidos
+  version: 1.0.0
+  contact:
+    name: Pragma PowerUp Team
+
+servers:
+  - url: http://localhost:8083
+    description: Servidor local de desarrollo
+
+
+paths:
+  /audit/order-status:
+    post:
+      tags:
+        - Audit
+      summary: Registrar auditoría de cambio de estado
+      description: Registra un cambio de estado de un pedido para auditoría
+      operationId: createOrderStatusAudit
+      requestBody:
+        description: Datos de la auditoría a registrar
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderStatusAuditRequest'
+      responses:
+        '201':
+          description: Auditoría registrada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderStatusAuditDataResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+        - Audit
+      summary: Consultar historial de auditoría
+      description: Obtiene el historial de cambios de estado con filtros opcionales. Los clientes solo pueden ver sus propios pedidos.
+      operationId: getOrderStatusAuditHistory
+      parameters:
+        - name: clientId
+          in: query
+          description: ID del cliente (obligatorio para clientes, opcional para otros roles)
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: orderId
+          in: query
+          description: ID del pedido
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: actionTypes
+          in: query
+          description: Tipos de acción a filtrar (múltiples valores permitidos)
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - name: page
+          in: query
+          description: Número de página
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: Tamaño de página
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Historial obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderStatusAuditListResponse'
+        '400':
+          description: Parámetros de consulta inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+components:
+  schemas:
+    # Response específico para crear/obtener auditoría
+    OrderStatusAuditDataResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/OrderStatusAuditResponse'
+      required:
+        - data
+
+    # Response para lista de auditorías
+    OrderStatusAuditListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderStatusAuditResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      required:
+        - data
+        - meta
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Página actual
+          example: 0
+        size:
+          type: integer
+          description: Elementos por página
+          example: 10
+        totalElements:
+          type: integer
+          description: Total de elementos
+          example: 100
+        totalPages:
+          type: integer
+          description: Total de páginas
+          example: 10
+
+    OrderStatusAuditRequest:
+      type: object
+      properties:
+        orderId:
+          type: integer
+          format: int64
+          description: ID del pedido
+          example: 1
+        restaurantId:
+          type: integer
+          format: int64
+          description: ID del restaurante
+          example: 5
+        clientId:
+          type: integer
+          format: int64
+          description: ID del cliente
+          example: 10
+        previousStatus:
+          type: string
+          maxLength: 50
+          description: Estado anterior del pedido
+          example: "PENDIENTE"
+        newStatus:
+          type: string
+          maxLength: 50
+          description: Nuevo estado del pedido
+          example: "EN_PREPARACION"
+        changedByUserId:
+          type: integer
+          format: int64
+          description: ID del usuario que realizó el cambio
+          example: 7
+        changedByRole:
+          type: string
+          maxLength: 50
+          description: Rol del usuario que realizó el cambio
+          example: "EMPLEADO"
+        actionType:
+          type: string
+          maxLength: 50
+          description: Tipo de acción realizada
+          example: "STATUS_CHANGE"
+        employeeId:
+          type: integer
+          format: int64
+          description: ID del empleado asignado (si aplica)
+          example: 7
+        ipAddress:
+          type: string
+          maxLength: 45
+          description: Dirección IP desde donde se realizó el cambio
+          example: "192.168.1.100"
+        userAgent:
+          type: string
+          maxLength: 500
+          description: User agent del navegador/cliente
+          example: "Mozilla/5.0"
+        notes:
+          type: string
+          maxLength: 1000
+          description: Notas adicionales
+          example: "Pedido asignado al empleado"
+        timeInPreviousStatusMinutes:
+          type: integer
+          format: int64
+          description: Tiempo en el estado anterior en minutos
+          example: 15
+      required:
+        - orderId
+        - restaurantId
+        - clientId
+        - newStatus
+        - changedByUserId
+        - changedByRole
+
+    OrderStatusAuditResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID único de la auditoría (MongoDB ObjectId)
+          example: "507f1f77bcf86cd799439011"
+        orderId:
+          type: integer
+          format: int64
+          description: ID del pedido
+          example: 1
+        restaurantId:
+          type: integer
+          format: int64
+          description: ID del restaurante
+          example: 5
+        clientId:
+          type: integer
+          format: int64
+          description: ID del cliente
+          example: 10
+        previousStatus:
+          type: string
+          description: Estado anterior del pedido
+          example: "PENDIENTE"
+        newStatus:
+          type: string
+          description: Nuevo estado del pedido
+          example: "EN_PREPARACION"
+        changedByUserId:
+          type: integer
+          format: int64
+          description: ID del usuario que realizó el cambio
+          example: 7
+        changedByRole:
+          type: string
+          description: Rol del usuario que realizó el cambio
+          example: "EMPLEADO"
+        changedAt:
+          type: string
+          format: local-date-time
+          description: Fecha y hora del cambio
+          example: "2025-12-02T10:30:00Z"
+        actionType:
+          type: string
+          description: Tipo de acción realizada
+          example: "STATUS_CHANGE"
+        employeeId:
+          type: integer
+          format: int64
+          description: ID del empleado asignado (si aplica)
+          example: 7
+        ipAddress:
+          type: string
+          description: Dirección IP desde donde se realizó el cambio
+          example: "192.168.1.100"
+        userAgent:
+          type: string
+          description: User agent del navegador/cliente
+          example: "Mozilla/5.0"
+        notes:
+          type: string
+          description: Notas adicionales
+          example: "Pedido asignado al empleado"
+        timeInPreviousStatusMinutes:
+          type: integer
+          format: int64
+          description: Tiempo en el estado anterior en minutos
+          example: 15
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp del error
+          example: "2025-12-02T10:30:00Z"
+        status:
+          type: integer
+          description: Código de estado HTTP
+          example: 400
+        error:
+          type: string
+          description: Tipo de error
+          example: "Bad Request"
+        message:
+          type: string
+          description: Mensaje descriptivo del error
+          example: "El campo 'orderId' es requerido"
+        path:
+          type: string
+          description: Path de la petición que causó el error
+          example: "/audit/order-status"
+

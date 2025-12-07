@@ -12,7 +12,6 @@ import com.pragma.powerup.domain.service.OrderMetricsCalculator;
 import com.pragma.powerup.domain.spi.IOrderMetricsPersistencePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
@@ -29,99 +28,63 @@ public class OrderMetricsUseCase implements IOrderMetricsServicePort {
     private final OrderMetricsCalculator calculator = new OrderMetricsCalculator();
 
     @Override
-    public Page<OrderDurationMetricsModel> getOrdersDurationMetrics(
+    public OrderDurationMetricsModel getOrdersDurationMetrics(
             Long restaurantId,
             LocalDateTime startDate,
             LocalDateTime endDate,
             Pageable pageable
     ) {
-        // 1. Obtener auditorías crudas de pedidos finalizados
-        List<OrderStatusAuditModel> finalizedAudits = metricsPersistencePort.findByRestaurantAndDateRange(
-                restaurantId, startDate, endDate
+        Page<OrderStatusAuditModel> finalizedAuditsPage = metricsPersistencePort.findByRestaurantAndDateRange(
+                restaurantId, startDate, endDate, pageable
         );
 
-        // 2. Calcular métricas usando el servicio de dominio
-        List<OrderDurationMetricModel> allMetrics = calculator.calculateOrderDurations(
-                finalizedAudits,
+        List<OrderDurationMetricModel> metrics = calculator.calculateOrderDurations(
+                finalizedAuditsPage.getContent(),
                 metricsPersistencePort::findByOrderId
         );
 
-        // 3. Calcular resumen estadístico
-        DurationSummaryModel summary = calculateDurationSummary(allMetrics);
+        DurationSummaryModel summary = calculateDurationSummary(metrics);
 
-        // 4. Aplicar ordenamiento
-        List<OrderDurationMetricModel> sortedMetrics = applySorting(allMetrics, pageable);
-
-        // 5. Aplicar paginación
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), sortedMetrics.size());
-        List<OrderDurationMetricModel> pagedMetrics = sortedMetrics.subList(start, end);
-
-        // 6. Crear el modelo agregado
-        OrderDurationMetricsModel metricsWithSummary = OrderDurationMetricsModel.builder()
-                .orders(pagedMetrics)
+        return OrderDurationMetricsModel.builder()
+                .orders(metrics)
                 .summary(summary)
                 .build();
-
-        List<OrderDurationMetricsModel> content = new ArrayList<>();
-        content.add(metricsWithSummary);
-
-        return new PageImpl<>(content, pageable, sortedMetrics.size());
     }
 
     @Override
-    public Page<EmployeeEfficiencyMetricsModel> getEmployeeEfficiencyMetrics(
+    public EmployeeEfficiencyMetricsModel getEmployeeEfficiencyMetrics(
             Long restaurantId,
             LocalDateTime startDate,
             LocalDateTime endDate,
             Integer minOrdersCompleted,
             Pageable pageable
     ) {
-        // 1. Obtener auditorías y calcular duraciones
-        List<OrderStatusAuditModel> finalizedAudits = metricsPersistencePort.findByRestaurantAndDateRange(
-                restaurantId, startDate, endDate
+        Page<OrderStatusAuditModel> finalizedAuditsPage = metricsPersistencePort.findByRestaurantAndDateRange(
+                restaurantId, startDate, endDate, pageable
         );
 
         List<OrderDurationMetricModel> allMetrics = calculator.calculateOrderDurations(
-                finalizedAudits,
+                finalizedAuditsPage.getContent(),
                 metricsPersistencePort::findByOrderId
         );
 
-        // 2. Filtrar solo pedidos con empleado asignado
         List<OrderDurationMetricModel> metricsWithEmployee = allMetrics.stream()
                 .filter(metric -> metric.getEmployeeId() != null)
                .toList();
 
-        // 3. Agrupar por empleado y calcular métricas
         List<EmployeeEfficiencyMetricModel> employeeMetrics = calculateEmployeeMetrics(
                 metricsWithEmployee,
                 minOrdersCompleted != null ? minOrdersCompleted : 1
         );
 
-        // 4. Asignar ranking
         assignRanking(employeeMetrics);
 
-        // 5. Calcular resumen
         EmployeeEfficiencySummaryModel summary = calculateEfficiencySummary(employeeMetrics);
 
-        // 6. Aplicar ordenamiento
-        List<EmployeeEfficiencyMetricModel> sortedMetrics = applyEmployeeSorting(employeeMetrics, pageable);
-
-        // 7. Aplicar paginación
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), sortedMetrics.size());
-        List<EmployeeEfficiencyMetricModel> pagedMetrics = sortedMetrics.subList(start, end);
-
-        // 8. Crear modelo agregado
-        EmployeeEfficiencyMetricsModel metricsWithSummary = EmployeeEfficiencyMetricsModel.builder()
-                .ranking(pagedMetrics)
+        return EmployeeEfficiencyMetricsModel.builder()
+                .ranking(employeeMetrics)
                 .summary(summary)
                 .build();
-
-        List<EmployeeEfficiencyMetricsModel> content = new ArrayList<>();
-        content.add(metricsWithSummary);
-
-        return new PageImpl<>(content, pageable, sortedMetrics.size());
     }
 
     private List<EmployeeEfficiencyMetricModel> calculateEmployeeMetrics(
@@ -261,83 +224,6 @@ public class OrderMetricsUseCase implements IOrderMetricsServicePort {
         for (int i = 0; i < sorted.size(); i++) {
             sorted.get(i).setRank(i + 1);
         }
-    }
-
-    private List<OrderDurationMetricModel> applySorting(List<OrderDurationMetricModel> metrics, Pageable pageable) {
-        if (pageable.getSort().isUnsorted()) {
-            return metrics.stream()
-                    .sorted(Comparator.comparing(OrderDurationMetricModel::getDurationMinutes).reversed())
-                   .toList();
-        }
-
-        Comparator<OrderDurationMetricModel> comparator = null;
-        for (var order : pageable.getSort()) {
-            Comparator<OrderDurationMetricModel> currentComparator = null;
-
-            switch (order.getProperty()) {
-                case "durationMinutes":
-                    currentComparator = Comparator.comparing(OrderDurationMetricModel::getDurationMinutes);
-                    break;
-                case "orderId":
-                    currentComparator = Comparator.comparing(OrderDurationMetricModel::getOrderId);
-                    break;
-                case "completedAt":
-                    currentComparator = Comparator.comparing(OrderDurationMetricModel::getCompletedAt);
-                    break;
-                default:
-                    currentComparator = Comparator.comparing(OrderDurationMetricModel::getDurationMinutes);
-            }
-
-            if (order.isDescending()) {
-                currentComparator = currentComparator.reversed();
-            }
-
-            comparator = comparator == null ? currentComparator : comparator.thenComparing(currentComparator);
-        }
-
-        return metrics.stream()
-                .sorted(comparator)
-               .toList();
-    }
-
-    private List<EmployeeEfficiencyMetricModel> applyEmployeeSorting(
-            List<EmployeeEfficiencyMetricModel> metrics,
-            Pageable pageable
-    ) {
-        if (pageable.getSort().isUnsorted()) {
-            return metrics.stream()
-                    .sorted(Comparator.comparing(EmployeeEfficiencyMetricModel::getAverageDurationMinutes))
-                   .toList();
-        }
-
-        Comparator<EmployeeEfficiencyMetricModel> comparator = null;
-        for (var order : pageable.getSort()) {
-            Comparator<EmployeeEfficiencyMetricModel> currentComparator = null;
-
-            switch (order.getProperty()) {
-                case "averageDurationMinutes":
-                    currentComparator = Comparator.comparing(EmployeeEfficiencyMetricModel::getAverageDurationMinutes);
-                    break;
-                case "totalOrdersCompleted":
-                    currentComparator = Comparator.comparing(EmployeeEfficiencyMetricModel::getTotalOrdersCompleted);
-                    break;
-                case "employeeId":
-                    currentComparator = Comparator.comparing(EmployeeEfficiencyMetricModel::getEmployeeId);
-                    break;
-                default:
-                    currentComparator = Comparator.comparing(EmployeeEfficiencyMetricModel::getAverageDurationMinutes);
-            }
-
-            if (order.isDescending()) {
-                currentComparator = currentComparator.reversed();
-            }
-
-            comparator = comparator == null ? currentComparator : comparator.thenComparing(currentComparator);
-        }
-
-        return metrics.stream()
-                .sorted(comparator)
-               .toList();
     }
 }
 

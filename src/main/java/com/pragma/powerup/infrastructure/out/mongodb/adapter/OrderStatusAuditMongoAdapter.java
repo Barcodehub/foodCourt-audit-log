@@ -1,7 +1,5 @@
 package com.pragma.powerup.infrastructure.out.mongodb.adapter;
 
-import com.pragma.powerup.domain.model.EmployeeEfficiencyMetricModel;
-import com.pragma.powerup.domain.model.OrderDurationMetricModel;
 import com.pragma.powerup.domain.model.OrderStatusAuditModel;
 import com.pragma.powerup.domain.spi.IOrderMetricsPersistencePort;
 import com.pragma.powerup.domain.spi.IOrderStatusAuditPersistencePort;
@@ -14,8 +12,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.List;
 
 
 @Service
@@ -47,10 +45,11 @@ public class OrderStatusAuditMongoAdapter implements IOrderStatusAuditPersistenc
     }
 
     @Override
-    public List<OrderStatusAuditModel> findByRestaurantAndDateRange(
+    public Page<OrderStatusAuditModel> findByRestaurantAndDateRange(
             Long restaurantId,
             LocalDateTime startDate,
-            LocalDateTime endDate
+            LocalDateTime endDate,
+            Pageable pageable
     ) {
         // Establecer fechas por defecto si no se proporcionan
         LocalDateTime effectiveStartDate = startDate != null ? startDate : LocalDateTime.now().minusMonths(1);
@@ -62,13 +61,11 @@ public class OrderStatusAuditMongoAdapter implements IOrderStatusAuditPersistenc
                 "CANCELADO", "Cancelado", "CANCELLED"
         );
 
-        List<OrderStatusAuditDocument> documents = auditRepository.findByRestaurantAndStatusInAndDateRange(
-                restaurantId, finalStatuses, effectiveStartDate, effectiveEndDate
+        Page<OrderStatusAuditDocument> documents = auditRepository.findByRestaurantAndStatusInAndDateRangePaged(
+                restaurantId, finalStatuses, effectiveStartDate, effectiveEndDate, pageable
         );
 
-        return documents.stream()
-                .map(auditMapper::toModel)
-               .toList();
+        return documents.map(auditMapper::toModel);
     }
 
     @Override

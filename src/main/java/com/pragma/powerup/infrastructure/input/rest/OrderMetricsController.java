@@ -11,11 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
 
-/**
- * Controlador REST para endpoints de métricas
- * Responsabilidad: Recibir peticiones HTTP y delegar a la capa de aplicación
- * Sigue el principio de responsabilidad única (SOLID)
- */
 @RestController
 @RequiredArgsConstructor
 public class OrderMetricsController implements MetricsApi {

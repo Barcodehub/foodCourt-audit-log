@@ -22,12 +22,18 @@ public interface IOrderMetricsMapper {
     // Mappers para DurationSummary
     DurationSummaryDto toDurationSummaryDto(DurationSummaryModel model);
 
+    // Mapper para OrderDurationMetrics completo
+    OrdersDurationMetricsResponseDataDto toOrdersDurationMetricsDataDto(OrderDurationMetricsModel model);
+
     // Mappers para EmployeeEfficiencyMetric
     EmployeeEfficiencyMetricDto toEmployeeEfficiencyMetricDto(EmployeeEfficiencyMetricModel model);
     List<EmployeeEfficiencyMetricDto> toEmployeeEfficiencyMetricDtoList(List<EmployeeEfficiencyMetricModel> models);
 
     // Mappers para EmployeeEfficiencySummary
     EmployeeEfficiencySummaryDto toEmployeeEfficiencySummaryDto(EmployeeEfficiencySummaryModel model);
+
+    // Mapper para EmployeeEfficiencyMetrics completo
+    EmployeeEfficiencyMetricsResponseDataDto toEmployeeEfficiencyMetricsDataDto(EmployeeEfficiencyMetricsModel model);
 
     default OffsetDateTime map(LocalDateTime localDateTime) {
         if (localDateTime == null) {

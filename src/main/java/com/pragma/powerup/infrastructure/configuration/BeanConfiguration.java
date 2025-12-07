@@ -9,11 +9,6 @@ import com.pragma.powerup.domain.usecase.OrderStatusAuditUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Configuración de beans del dominio
- * Responsabilidad: Configurar e inyectar los casos de uso del dominio
- * Sigue el principio de inversión de dependencias (SOLID)
- */
 @Configuration
 public class BeanConfiguration {
 

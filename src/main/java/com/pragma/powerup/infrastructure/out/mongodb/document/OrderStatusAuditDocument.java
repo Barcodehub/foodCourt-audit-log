@@ -12,13 +12,6 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
 
-/**
- * Documento MongoDB para auditoría de cambios de estado de pedidos
- * Sigue las mejores prácticas de MongoDB:
- * - Índices optimizados para consultas frecuentes
- * - Nombres de campos consistentes
- * - Estructura desnormalizada para mejor rendimiento
- */
 @Document(collection = "order_status_audit")
 @Getter
 @Setter

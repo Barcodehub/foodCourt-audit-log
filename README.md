@@ -2,7 +2,7 @@
 <div align="center">
 <h3 align="center">PRAGMA POWER-UP - TRACEABILITY AND AUDIT MICROSERVICE</h3>
   <p align="center">
-    Microservicio de trazabilidad y auditoría para el sistema de restaurantes. Registra y consulta el historial de cambios de estado de pedidos para auditoría y trazabilidad.
+    Microservicio de trazabilidad y auditoría para el sistema de plazoleta de comidas. Registra y consulta el historial de cambios de estado de pedidos para auditoría y análisis de eficiencia.
   </p>
 </div>
 
@@ -13,24 +13,48 @@
 * ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 * ![Gradle](https://img.shields.io/badge/Gradle-02303A.svg?style=for-the-badge&logo=Gradle&logoColor=white)
 
-## Descripción
+## Descripción General
 
 Este microservicio es responsable de:
-- **Registro de auditorías**: Almacena cada cambio de estado de pedidos con información detallada
-- **Consulta de histórico**: Permite consultar el historial de cambios con filtros opcionales
+
+- **Registro de auditorías**: Almacena cada cambio de estado de pedidos con información detallada (timestamp, usuario responsable, estado anterior/nuevo)
+- **Consulta de histórico**: Permite consultar el historial de cambios con filtros opcionales por cliente, pedido o tipo de acción
 - **Seguridad**: Los clientes solo pueden consultar el historial de sus propios pedidos
+- **Análisis de eficiencia**: Provee datos para calcular tiempos promedio de procesamiento de pedidos
 
-## Características
+**Puerto:** 8083  
+**Base de datos:** MongoDB (traceability_audit)  
+**Arquitectura:** Hexagonal (Puertos y Adaptadores)
 
-- **Puerto**: 8083
-- **Base de datos**: MongoDB (traceability_audit)
-- **Arquitectura**: Hexagonal (Puertos y Adaptadores)
-- **Principios**: SOLID, Clean Code
+### Arquitectura
 
-## Endpoints
+El proyecto sigue **Arquitectura Hexagonal (Puertos y Adaptadores)**:
 
-### POST /audit/order-status
+```
+src/
+├── domain/              # Lógica de negocio pura
+│   ├── model/          # Modelos de dominio
+│   ├── usecase/        # Casos de uso
+│   ├── api/            # Puertos de entrada
+│   └── spi/            # Puertos de salida
+├── application/         # Capa de aplicación
+│   ├── handler/        # Handlers
+│   └── mapper/         # Mappers (MapStruct)
+└── infrastructure/      # Adaptadores
+    ├── input/rest/     # Controladores REST
+    ├── out/mongodb/    # Adaptador MongoDB
+    └── configuration/  # Configuración de beans
+```
+
+---
+
+## Endpoints Implementados
+
+### `POST /audit/order-status`
+
 Registra una auditoría de cambio de estado de pedido.
+
+> **Nota:** Este endpoint es llamado internamente por el microservicio `foodcourt` cada vez que ocurre un cambio de estado en un pedido.
 
 **Request Body:**
 ```json
@@ -51,7 +75,7 @@ Registra una auditoría de cambio de estado de pedido.
 }
 ```
 
-**Response:**
+**Response (201 Created):**
 ```json
 {
   "data": {
@@ -63,7 +87,7 @@ Registra una auditoría de cambio de estado de pedido.
     "newStatus": "EN_PREPARACION",
     "changedByUserId": 7,
     "changedByRole": "EMPLEADO",
-    "changedAt": "2025-12-02T10:30:00",
+    "changedAt": "2025-12-07T10:30:00",
     "actionType": "STATUS_CHANGE",
     "employeeId": 7,
     "ipAddress": "192.168.1.100",
@@ -74,13 +98,16 @@ Registra una auditoría de cambio de estado de pedido.
 }
 ```
 
-### GET /audit/order-status
+---
+
+### `GET /audit/order-status`
+
 Consulta el historial de auditorías con filtros opcionales y paginación.
 
 **Query Parameters:**
 - `clientId`: ID del cliente (obligatorio para clientes, opcional para otros roles)
-- `orderId`: ID del pedido
-- `actionTypes`: Lista de tipos de acción (filtro múltiple)
+- `orderId`: ID del pedido (opcional)
+- `actionTypes`: Lista de tipos de acción (filtro múltiple, opcional)
 - `page`: Número de página (default: 0)
 - `size`: Tamaño de página (default: 10)
 
@@ -89,7 +116,7 @@ Consulta el historial de auditorías con filtros opcionales y paginación.
 GET /audit/order-status?clientId=10&actionTypes=STATUS_CHANGE&actionTypes=ASSIGNMENT&page=0&size=10
 ```
 
-**Response:**
+**Response (200 OK):**
 ```json
 {
   "data": [
@@ -102,241 +129,156 @@ GET /audit/order-status?clientId=10&actionTypes=STATUS_CHANGE&actionTypes=ASSIGN
       "newStatus": "EN_PREPARACION",
       "changedByUserId": 7,
       "changedByRole": "EMPLEADO",
-      "changedAt": "2025-12-02T10:30:00",
+      "changedAt": "2025-12-07T10:30:00",
       "actionType": "STATUS_CHANGE",
       "employeeId": 7,
       "ipAddress": "192.168.1.100",
       "userAgent": "Mozilla/5.0",
       "notes": "Pedido asignado al empleado",
       "timeInPreviousStatusMinutes": 15
+    },
+    {
+      "id": "507f1f77bcf86cd799439012",
+      "orderId": 1,
+      "restaurantId": 5,
+      "clientId": 10,
+      "previousStatus": "EN_PREPARACION",
+      "newStatus": "LISTO",
+      "changedByUserId": 7,
+      "changedByRole": "EMPLEADO",
+      "changedAt": "2025-12-07T10:50:00",
+      "actionType": "STATUS_CHANGE",
+      "employeeId": 7,
+      "timeInPreviousStatusMinutes": 20
     }
   ],
   "meta": {
     "page": 0,
     "size": 10,
-    "totalElements": 1,
+    "totalElements": 2,
     "totalPages": 1
   }
 }
 ```
 
-## Arquitectura
+---
 
-El proyecto sigue una arquitectura hexagonal con las siguientes capas:
+## Cómo Ejecutar Localmente
 
-### Domain (Dominio)
-Contiene la lógica de negocio pura, sin dependencias de frameworks externos.
+### 1. Prerequisitos
 
-- **api**: Puertos de entrada (interfaces de servicios)
-  - `IOrderStatusAuditServicePort`: Define las operaciones del servicio de auditoría
-  
-- **spi**: Puertos de salida (interfaces de persistencia)
-  - `IOrderStatusAuditPersistencePort`: Define las operaciones de persistencia
-  
-- **model**: Modelos de dominio
-  - `OrderStatusAuditModel`: Modelo de dominio para auditoría
-  
-- **usecase**: Casos de uso con lógica de negocio
-  - `OrderStatusAuditUseCase`: Implementa las reglas de negocio para auditoría
-  
-- **exception**: Excepciones del dominio
-  - `DomainException`: Excepción base del dominio
+- ✅ JDK 17
+- ✅ Gradle
+- ✅ MongoDB 4.4+
 
-### Application (Aplicación)
-Capa de orquestación entre la infraestructura y el dominio.
+### Herramientas Recomendadas
 
-- **handler**: Handlers que coordinan entre controllers y domain
-  - `IOrderStatusAuditHandler`: Interface del handler
-  - `OrderStatusAuditHandler`: Implementación que coordina las operaciones
-  
-- **mapper**: Mappers entre DTOs y modelos de dominio
-  - `IOrderStatusAuditMapper`: Mapper usando MapStruct
+- IntelliJ IDEA
+- MongoDB Compass (GUI para gestión de MongoDB)
+- Postman
 
-### Infrastructure (Infraestructura)
-Implementaciones técnicas y adaptadores.
+### 2. Instalación
 
-- **input/rest**: Controllers REST
-  - `OrderStatusAuditController`: Controlador REST que expone los endpoints
-  
-- **out/mongodb**: Adaptadores de persistencia MongoDB
-  - **document**: Documentos MongoDB
-    - `OrderStatusAuditDocument`: Documento con índices optimizados
-  - **repository**: Repositorios Spring Data MongoDB
-    - `IOrderStatusAuditRepository`: Repositorio con queries personalizadas
-  - **mapper**: Mappers entre documentos y modelos
-    - `IOrderStatusAuditDocumentMapper`: Mapper usando MapStruct
-  - **adapter**: Implementaciones de puertos de persistencia
-    - `OrderStatusAuditMongoAdapter`: Adaptador MongoDB
-    
-- **configuration**: Configuración de beans
-  - `BeanConfiguration`: Configuración de beans del dominio
-  
-- **exceptionhandler**: Manejo global de excepciones
-  - `ControllerAdvisor`: Maneja excepciones globalmente
+1. **Clonar el repositorio**
+   ```bash
+   git clone <repository-url>
+   cd trazability-audit
+   ```
 
-## Tecnologías
+2**Configurar conexión a MongoDB**
+   
+   Editar `src/main/resources/application-dev.yml`:
+   ```yaml
+   spring:
+     data:
+       mongodb:
+         uri: mongodb://localhost:27017/traceability_audit
+   ```
 
-- **Java 17**: Lenguaje de programación
-- **Spring Boot 3.2.0**: Framework principal
-- **Spring Data MongoDB**: Persistencia de datos NoSQL
-- **MongoDB**: Base de datos NoSQL orientada a documentos
-- **MapStruct**: Mapeo automático de objetos
-- **Lombok**: Reducción de código boilerplate
-- **OpenAPI 3.0 / Swagger**: Documentación de API
-- **Gradle**: Gestión de dependencias y compilación
+### 3. Compilar el Proyecto
 
-## Configuración
-
-### Variables de entorno
-
-```properties
-SERVER_PORT=8083
-MONGODB_URI=mongodb://localhost:27017/traceability_audit
+```bash
+./gradlew clean build
 ```
 
-### Base de datos
+### 4. Ejecutar la Aplicación
 
-MongoDB se encarga de crear la base de datos y la colección automáticamente. Los índices se crean automáticamente gracias a las anotaciones `@Indexed` en el documento:
+**Opción 1: Desde terminal**
+```bash
+./gradlew bootRun
+```
+
+**Opción 2: Desde IntelliJ IDEA**
+- Right-click `PowerUpApplication.java` → Run
+
+### 5. Verificar MongoDB
+
+**Usando MongoDB Compass:**
+1. Conectar a `mongodb://localhost:27017`
+2. Verificar que la base de datos `traceability_audit` se haya creado
+3. Verificar la colección `order_status_audit`
+
+---
+
+## Cómo Correr las Pruebas
+
+### Ejecutar todas las pruebas con cobertura
+
+```bash
+./gradlew test jacocoTestReport
+```
+
+### Ver reportes
+
+```bash
+# Reporte de tests
+start build/reports/tests/test/index.html
+
+# Reporte de cobertura
+start build/reports/jacoco/test/html/index.html
+```
+
+### Ejecutar tests específicos
+
+```bash
+# OrderStatusAuditUseCaseTest (HU-17)
+./gradlew test --tests "OrderStatusAuditUseCaseTest"
+```
+
+### Cobertura de Historias de Usuario
+
+Este microservicio cubre **1 Historia de Usuario** con más de **15 pruebas unitarias**:
+
+| Historia | Clase de Test | Pruebas |
+|----------|---------------|---------|
+| HU-17: Consultar trazabilidad | `OrderStatusAuditUseCaseTest` | ✅ Registro de auditoría<br>✅ Consulta por clientId<br>✅ Consulta por orderId<br>✅ Filtros múltiples<br>✅ Paginación<br>✅ Ordenamiento por fecha |
+
+---
+
+## Índices de MongoDB
+
+Los siguientes índices se crean automáticamente gracias a las anotaciones `@Indexed` en el documento:
+
 - `order_id`: Para búsquedas por pedido
 - `client_id`: Para búsquedas por cliente
 - `changed_at`: Para ordenamiento temporal
 - `action_type`: Para filtros por tipo de acción
 
-## Ejecución
+Esto garantiza consultas rápidas incluso con grandes volúmenes de datos.
 
-### Desarrollo local
+---
 
-```bash
-./gradlew bootRun
-```
+## Integración con otros Microservicios
 
-### Compilación
+Este microservicio está diseñado para ser llamado desde el microservicio [`foodcourt`](https://github.com/Barcodehub/foodcourt) cada vez que ocurra un cambio de estado en un pedido.
 
-```bash
-./gradlew build
-```
-
-### Ejecutar tests
-
-```bash
-./gradlew test
-```
-
-## Documentación API
-
-Una vez iniciado el proyecto, acceder a:
-
-- **Swagger UI**: http://localhost:8083/swagger-ui.html
-- **OpenAPI JSON**: http://localhost:8083/api-docs
-
-## Validaciones y Reglas de Negocio
-
-### Registro de auditoría
-- `orderId` es obligatorio
-- `restaurantId` es obligatorio
-- `clientId` es obligatorio
-- `newStatus` es obligatorio
-- `changedByUserId` es obligatorio
-- `changedByRole` es obligatorio
-- `changedAt` se establece automáticamente si no se proporciona
-
-### Consulta de histórico
-- Al menos un filtro debe ser proporcionado (clientId, orderId o actionTypes)
-- Los clientes solo pueden consultar sus propios pedidos
-- Soporta filtrado por múltiples tipos de acción
-- Resultados ordenados por fecha descendente (más reciente primero)
-
-## Estructura del Proyecto
-
-```
-trazability-audit/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── com/pragma/powerup/
-│   │   │       ├── PowerUpApplication.java
-│   │   │       ├── application/
-│   │   │       │   ├── handler/
-│   │   │       │   │   ├── IOrderStatusAuditHandler.java
-│   │   │       │   │   └── impl/
-│   │   │       │   │       └── OrderStatusAuditHandler.java
-│   │   │       │   └── mapper/
-│   │   │       │       └── IOrderStatusAuditMapper.java
-│   │   │       ├── domain/
-│   │   │       │   ├── api/
-│   │   │       │   │   └── IOrderStatusAuditServicePort.java
-│   │   │       │   ├── exception/
-│   │   │       │   │   └── DomainException.java
-│   │   │       │   ├── model/
-│   │   │       │   │   └── OrderStatusAuditModel.java
-│   │   │       │   ├── spi/
-│   │   │       │   │   └── IOrderStatusAuditPersistencePort.java
-│   │   │       │   └── usecase/
-│   │   │       │       └── OrderStatusAuditUseCase.java
-│   │   │       └── infrastructure/
-│   │   │           ├── configuration/
-│   │   │           │   └── BeanConfiguration.java
-│   │   │           ├── exception/
-│   │   │           │   └── NoDataFoundException.java
-│   │   │           ├── exceptionhandler/
-│   │   │           │   ├── ControllerAdvisor.java
-│   │   │           │   └── ExceptionResponse.java
-│   │   │           ├── input/
-│   │   │           │   └── rest/
-│   │   │           │       └── OrderStatusAuditController.java
-│   │   │           └── out/
-│   │   │               └── mongodb/
-│   │   │                   ├── adapter/
-│   │   │                   │   └── OrderStatusAuditMongoAdapter.java
-│   │   │                   ├── document/
-│   │   │                   │   └── OrderStatusAuditDocument.java
-│   │   │                   ├── mapper/
-│   │   │                   │   └── IOrderStatusAuditDocumentMapper.java
-│   │   │                   └── repository/
-│   │   │                       └── IOrderStatusAuditRepository.java
-│   │   └── resources/
-│   │       ├── application.yml
-│   │       └── static/
-│   │           └── open-api.yaml
-│   └── test/
-│       └── java/
-│           └── com/pragma/powerup/
-│               └── PowerUpApplicationTests.java
-├── build.gradle
-└── README.md
-```
-
-## Integración con otros microservicios
-
-Este microservicio está diseñado para ser llamado desde otros microservicios (como el de pedidos) cada vez que ocurra un cambio de estado. No requiere autenticación JWT ya que es un servicio interno.
-
-### Ejemplo de integración
-
-```java
-// Desde el microservicio de pedidos
-OrderStatusAuditRequest auditRequest = OrderStatusAuditRequest.builder()
-    .orderId(order.getId())
-    .restaurantId(order.getRestaurantId())
-    .clientId(order.getClientId())
-    .previousStatus(order.getPreviousStatus())
-    .newStatus(order.getCurrentStatus())
-    .changedByUserId(currentUser.getId())
-    .changedByRole(currentUser.getRole())
-    .actionType("STATUS_CHANGE")
-    .build();
-
-restTemplate.postForObject(
-    "http://localhost:8083/audit/order-status",
-    auditRequest,
-    OrderStatusAuditDataResponse.class
-);
-```
+---
 
 ## Autor
 
-Pragma PowerUp Team
+**Brayan Barco**
 
 ## Licencia
 
-Este proyecto es parte del programa PowerUp de Pragma.
+Este proyecto es parte de la prueba tecnica de Pragma.
 

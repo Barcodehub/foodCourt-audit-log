@@ -10,22 +10,26 @@ import java.util.*;
 
 public class OrderMetricsCalculator {
 
+    public static final String STATUS_ENTREGADO = "ENTREGADO";
+    public static final String STATUS_CANCELADO = "CANCELADO";
+    public static final String STATUS_DESCONOCIDO = "DESCONOCIDO";
+
     private static final List<String> PENDING_STATUSES = Arrays.asList(
             "PENDIENTE", "Pendiente", "PENDIENT", "PENDING"
     );
 
     private static final List<String> DELIVERED_STATUSES = Arrays.asList(
-            "ENTREGADO", "Entregado", "DELIVERED"
+            "Entregado", STATUS_ENTREGADO, "DELIVERED"
     );
 
     private static final List<String> CANCELLED_STATUSES = Arrays.asList(
-            "CANCELADO", "Cancelado", "CANCELLED"
+            STATUS_CANCELADO, "Cancelado", "CANCELLED"
     );
 
 
     public List<OrderDurationMetricModel> calculateOrderDurations(
             List<OrderStatusAuditModel> finalizedOrderAudits,
-            java.util.function.Function<Long, List<OrderStatusAuditModel>> allOrderHistoriesProvider
+            OrderHistoryProvider allOrderHistoriesProvider
     ) {
         Map<Long, OrderDurationMetricModel> metricsMap = new HashMap<>();
 
@@ -38,7 +42,7 @@ public class OrderMetricsCalculator {
             }
 
             // Obtener historial completo del pedido
-            List<OrderStatusAuditModel> orderHistory = allOrderHistoriesProvider.apply(orderId);
+            List<OrderStatusAuditModel> orderHistory = allOrderHistoriesProvider.getOrderHistory(orderId);
 
             if (orderHistory.isEmpty()) {
                 continue;
@@ -120,13 +124,13 @@ public class OrderMetricsCalculator {
 
     public String normalizeFinalStatus(String status) {
         if (status == null) {
-            return "DESCONOCIDO";
+            return STATUS_DESCONOCIDO;
         }
 
         if (isDeliveredStatus(status)) {
-            return "ENTREGADO";
+            return STATUS_ENTREGADO;
         } else if (isCancelledStatus(status)) {
-            return "CANCELADO";
+            return STATUS_CANCELADO;
         }
 
         return status;
@@ -135,13 +139,13 @@ public class OrderMetricsCalculator {
     //cuenta pedidos
     public int countDelivered(List<OrderDurationMetricModel> metrics) {
         return (int) metrics.stream()
-                .filter(m -> "ENTREGADO".equalsIgnoreCase(m.getFinalStatus()))
+                .filter(m -> STATUS_ENTREGADO.equalsIgnoreCase(m.getFinalStatus()))
                 .count();
     }
 
     public int countCancelled(List<OrderDurationMetricModel> metrics) {
         return (int) metrics.stream()
-                .filter(m -> "CANCELADO".equalsIgnoreCase(m.getFinalStatus()))
+                .filter(m -> STATUS_CANCELADO.equalsIgnoreCase(m.getFinalStatus()))
                 .count();
     }
 }

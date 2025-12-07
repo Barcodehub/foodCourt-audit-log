@@ -56,7 +56,6 @@ public class OrderMetricsUseCase implements IOrderMetricsServicePort {
             Long restaurantId,
             LocalDateTime startDate,
             LocalDateTime endDate,
-            Integer minOrdersCompleted,
             Pageable pageable
     ) {
         Page<OrderStatusAuditModel> finalizedAuditsPage = metricsPersistencePort.findByRestaurantAndDateRange(
@@ -72,10 +71,7 @@ public class OrderMetricsUseCase implements IOrderMetricsServicePort {
                 .filter(metric -> metric.getEmployeeId() != null)
                .toList();
 
-        List<EmployeeEfficiencyMetricModel> employeeMetrics = calculateEmployeeMetrics(
-                metricsWithEmployee,
-                minOrdersCompleted != null ? minOrdersCompleted : 1
-        );
+        List<EmployeeEfficiencyMetricModel> employeeMetrics = calculateEmployeeMetrics(metricsWithEmployee);
 
         assignRanking(employeeMetrics);
 
@@ -88,8 +84,7 @@ public class OrderMetricsUseCase implements IOrderMetricsServicePort {
     }
 
     private List<EmployeeEfficiencyMetricModel> calculateEmployeeMetrics(
-            List<OrderDurationMetricModel> metrics,
-            int minOrdersCompleted
+            List<OrderDurationMetricModel> metrics
     ) {
         // Agrupar por empleado
         Map<Long, List<OrderDurationMetricModel>> metricsByEmployee = metrics.stream()
@@ -101,10 +96,6 @@ public class OrderMetricsUseCase implements IOrderMetricsServicePort {
             Long employeeId = entry.getKey();
             List<OrderDurationMetricModel> employeeOrders = entry.getValue();
 
-            // Filtrar por número mínimo
-            if (employeeOrders.size() < minOrdersCompleted) {
-                continue;
-            }
 
             // Calcular estadísticas usando el calculator
             List<Long> durations = employeeOrders.stream()

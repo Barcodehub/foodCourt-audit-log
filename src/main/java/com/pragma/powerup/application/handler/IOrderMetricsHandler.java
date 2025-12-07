@@ -21,7 +21,6 @@ public interface IOrderMetricsHandler {
             Long restaurantId,
             OffsetDateTime startDate,
             OffsetDateTime endDate,
-            Integer minOrdersCompleted,
             Integer page,
             Integer size,
             String sortBy,

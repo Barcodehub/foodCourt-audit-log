@@ -64,7 +64,6 @@ public class OrderMetricsHandler implements IOrderMetricsHandler {
             Long restaurantId,
             OffsetDateTime startDate,
             OffsetDateTime endDate,
-            Integer minOrdersCompleted,
             Integer page,
             Integer size,
             String sortBy,
@@ -79,7 +78,7 @@ public class OrderMetricsHandler implements IOrderMetricsHandler {
         );
 
         EmployeeEfficiencyMetricsModel metricsModel = metricsServicePort.getEmployeeEfficiencyMetrics(
-                restaurantId, startDateTime, endDateTime, minOrdersCompleted, pageable
+                restaurantId, startDateTime, endDateTime, pageable
         );
 
         EmployeeEfficiencyMetricsResponseDto response = new EmployeeEfficiencyMetricsResponseDto();

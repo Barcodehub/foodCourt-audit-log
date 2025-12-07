@@ -19,7 +19,6 @@ public interface IOrderMetricsServicePort {
             Long restaurantId,
             LocalDateTime startDate,
             LocalDateTime endDate,
-            Integer minOrdersCompleted,
             Pageable pageable
     );
 }

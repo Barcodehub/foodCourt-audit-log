@@ -7,10 +7,6 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * Modelo de dominio para auditoría de cambios de estado
- * Representa la lógica de negocio sin dependencias de infraestructura
- */
 @Getter
 @Setter
 @NoArgsConstructor

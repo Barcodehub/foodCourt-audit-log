@@ -45,7 +45,7 @@ public class OrderStatusAuditHandler implements IOrderStatusAuditHandler {
         List<OrderStatusAuditResponseDto> auditList = auditPage.getContent()
                 .stream()
                 .map(auditMapper::toResponseDto)
-                .collect(Collectors.toList());
+               .toList();
 
         PaginationMetaDto meta = new PaginationMetaDto();
         meta.setPage(auditPage.getNumber());

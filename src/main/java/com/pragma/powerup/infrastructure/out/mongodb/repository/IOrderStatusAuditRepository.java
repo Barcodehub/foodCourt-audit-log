@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -13,26 +14,7 @@ import java.util.List;
  * Extiende MongoRepository para operaciones CRUD básicas
  * Incluye queries personalizadas para búsquedas complejas
  */
-public interface IOrderStatusAuditRepository extends MongoRepository<OrderStatusAuditDocument, String> {
-
-    /**
-     * Encuentra auditorías aplicando múltiples filtros opcionales
-     * Los resultados se ordenan por fecha de cambio descendente
-     *
-     * @param clientId ID del cliente (opcional)
-     * @param orderId ID del pedido (opcional)
-     * @param actionTypes Lista de tipos de acción (opcional)
-     * @param pageable Configuración de paginación
-     * @return Página de documentos que cumplen los criterios
-     */
-    @Query("{ " +
-            "$and: [ " +
-            "  { $or: [ { 'client_id': ?0 }, { $expr: { $eq: [?0, null] } } ] }, " +
-            "  { $or: [ { 'order_id': ?1 }, { $expr: { $eq: [?1, null] } } ] }, " +
-            "  { $or: [ { 'action_type': { $in: ?2 } }, { $expr: { $eq: [?2, null] } }, { $expr: { $eq: [{ $size: ?2 }, 0] } } ] } " +
-            "] " +
-            "}")
-    Page<OrderStatusAuditDocument> findByFilters(Long clientId, Long orderId, List<String> actionTypes, Pageable pageable);
+public interface IOrderStatusAuditRepository extends MongoRepository<OrderStatusAuditDocument, String>, OrderStatusAuditRepositoryCustom {
 
     /**
      * Encuentra todas las auditorías de un cliente específico
@@ -51,5 +33,53 @@ public interface IOrderStatusAuditRepository extends MongoRepository<OrderStatus
      * @return Página de documentos del pedido
      */
     Page<OrderStatusAuditDocument> findByOrderId(Long orderId, Pageable pageable);
+
+    /**
+     * Encuentra todas las auditorías de un restaurante en un rango de fechas
+     * Filtrado por estado "Pendiente" (inicio de pedido)
+     *
+     * @param restaurantId ID del restaurante
+     * @param newStatus Estado nuevo (Pendiente, PENDIENTE, etc.)
+     * @param startDate Fecha de inicio (opcional)
+     * @param endDate Fecha de fin (opcional)
+     * @return Lista de documentos que cumplen los criterios
+     */
+    @Query("{ 'restaurant_id': ?0, 'new_status': { $regex: ?1, $options: 'i' }, " +
+            "'changed_at': { $gte: ?2, $lte: ?3 } }")
+    List<OrderStatusAuditDocument> findByRestaurantAndStatusAndDateRange(
+            Long restaurantId,
+            String newStatus,
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    );
+
+    /**
+     * Encuentra todas las auditorías de un restaurante en un rango de fechas
+     * Filtrado por estados finales (Entregado o Cancelado)
+     *
+     * @param restaurantId ID del restaurante
+     * @param statuses Lista de estados finales
+     * @param startDate Fecha de inicio (opcional)
+     * @param endDate Fecha de fin (opcional)
+     * @return Lista de documentos que cumplen los criterios
+     */
+    @Query("{ 'restaurant_id': ?0, 'new_status': { $in: ?1 }, " +
+            "'changed_at': { $gte: ?2, $lte: ?3 } }")
+    List<OrderStatusAuditDocument> findByRestaurantAndStatusInAndDateRange(
+            Long restaurantId,
+            List<String> statuses,
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    );
+
+    /**
+     * Encuentra todos los cambios de estado de un pedido específico
+     *
+     * @param orderId ID del pedido
+     * @return Lista de documentos ordenados por fecha
+     */
+    List<OrderStatusAuditDocument> findByOrderIdOrderByChangedAtAsc(Long orderId);
 }
+
+
 

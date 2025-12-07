@@ -28,10 +28,7 @@ public class OrderStatusAuditUseCase implements IOrderStatusAuditServicePort {
 
     @Override
     public Page<OrderStatusAuditModel> getAuditHistory(Long clientId, Long orderId, List<String> actionTypes, Pageable pageable) {
-        if (clientId == null && orderId == null && (actionTypes == null || actionTypes.isEmpty())) {
-            throw new IllegalArgumentException("Al menos un filtro debe ser proporcionado");
-        }
-
+        // Los filtros son opcionales - permitir consultas sin filtros para ver todo el historial
         return auditPersistencePort.findByFilters(clientId, orderId, actionTypes, pageable);
     }
 

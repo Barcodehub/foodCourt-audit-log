@@ -29,7 +29,6 @@ public class OrderStatusAuditDocument {
     @Id
     private String id;
 
-    // Identificadores - Indexados para búsquedas rápidas
     @Field("order_id")
     @Indexed
     private Long orderId;
@@ -41,35 +40,30 @@ public class OrderStatusAuditDocument {
     @Indexed
     private Long clientId;
 
-    // Estado
     @Field("previous_status")
     private String previousStatus;
 
     @Field("new_status")
     private String newStatus;
 
-    // Quién hizo el cambio
     @Field("changed_by_user_id")
     private Long changedByUserId;
 
     @Field("changed_by_role")
-    private String changedByRole; // CLIENTE, EMPLEADO, SYSTEM
+    private String changedByRole;
 
-    // Cuándo - Indexado para ordenamiento temporal
     @Field("changed_at")
     @Indexed
     @CreatedDate
     private LocalDateTime changedAt;
 
-    // Contexto adicional
     @Field("action_type")
     @Indexed
     private String actionType;
 
     @Field("employee_id")
-    private Long employeeId; // Si fue asignado a un empleado
+    private Long employeeId;
 
-    // Metadata (opcional pero útil)
     @Field("ip_address")
     private String ipAddress;
 
@@ -79,7 +73,6 @@ public class OrderStatusAuditDocument {
     @Field("notes")
     private String notes;
 
-    // Tiempo de procesamiento
     @Field("time_in_previous_status_minutes")
     private Long timeInPreviousStatusMinutes;
 }

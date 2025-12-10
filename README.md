@@ -198,7 +198,13 @@ GET /audit/order-status?clientId=10&actionTypes=STATUS_CHANGE&actionTypes=ASSIGN
 ### 3. Compilar el Proyecto
 
 ```bash
+
+# Generar DTOs desde OpenAPI spec
+./gradlew openApiGenerate
+
+# Compilar todo el proyecto
 ./gradlew clean build
+
 ```
 
 ### 4. Ejecutar la Aplicación
